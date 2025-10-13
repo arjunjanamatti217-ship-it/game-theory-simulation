@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Game Theory Simulation - 200 Rounds</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 18px;
+    }
+    #instructions {
+      margin-bottom: 30px;
+      font-size: 16px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #result {
+      margin-top: 30px;
+      font-size: 18px;
+    }
+    #score {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    canvas {
+      margin-top: 40px;
+      max-width: 800px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Game Theory Simulation - 200 Rounds</h1>
+  <div id="instructions">
+    <p><strong>Instructions:</strong></p>
+    <p>This is a simulation of the Iterated Prisoner's Dilemma game. You will play 200 rounds against a computer opponent.</p>
+    <p>Each round, choose to <strong>Cooperate</strong> or <strong>Defect</strong>. Try to maximize your score through strategic choices.</p>
+    <p>Scoring:</p>
+    <ul style="text-align:left; display:inline-block;">
+      <li>Both Cooperate: 3 points each</li>
+      <li>You Cooperate, Computer Defects: You 0, Computer 5</li>
+      <li>You Defect, Computer Cooperates: You 5, Computer 0</li>
+      <li>Both Defect: 1 point each</li>
+    </ul>
+  </div>
+
+  <p>Choose your move:</p>
+  <button onclick="playRound('Cooperate')">Cooperate</button>
+  <button onclick="playRound('Defect')">Defect</button>
+
+  <div id="result"></div>
+  <div id="score"></div>
+
+  <canvas id="scoreChart"></canvas>
+
+  <script>
+    let round = 0;
+    let userScore = 0;
+    let computerScore = 0;
+    let userScores = [];
+    let computerScores = [];
+    let rounds = [];
+    let punishmentRounds = 0;
+
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    const scoreChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: rounds,
+        datasets: [
+          {
+            label: 'User Score',
+            data: userScores,
+            borderColor: 'blue',
+            fill: false
+          },
+          {
+            label: 'Computer Score',
+            data: computerScores,
+            borderColor: 'red',
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Round'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Score'
+            }
+          }
+        }
+      }
+    });
+
+    function playRound(userChoice) {
+      if (round >= 200) {
+        alert("Game over! You've completed 200 rounds.");
+        return;
+      }
+
+      let computerChoice;
+      if (round === 0) {
+        computerChoice = 'Cooperate';
+      } else if (punishmentRounds > 0) {
+        computerChoice = 'Defect';
+        punishmentRounds--;
+      } else {
+        computerChoice = lastUserChoice;
+      }
+
+      let outcome = '';
+      let userRoundScore = 0;
+      let computerRoundScore = 0;
+
+      if (userChoice === 'Cooperate' && computerChoice === 'Cooperate') {
+        outcome = 'Both cooperated. Mutual benefit!';
+        userRoundScore = 3;
+        computerRoundScore = 3;
+      } else if (userChoice === 'Cooperate' && computerChoice === 'Defect') {
+        outcome = 'You cooperated, computer defected. You lose!';
+        userRoundScore = 0;
+        computerRoundScore = 5;
+      } else if (userChoice === 'Defect' && computerChoice === 'Cooperate') {
+        outcome = 'You defected, computer cooperated. You win!';
+        userRoundScore = 5;
+        computerRoundScore = 0;
+        punishmentRounds = 3;
+      } else {
+        outcome = 'Both defected. Mutual loss!';
+        userRoundScore = 1;
+        computerRoundScore = 1;
+      }
+
+      userScore += userRoundScore;
+      computerScore += computerRoundScore;
+      round++;
+      lastUserChoice = userChoice;
+
+      userScores.push(userScore);
+      computerScores.push(computerScore);
+      rounds.push(round);
+
+      scoreChart.update();
+
+      document.getElementById('result').innerHTML = `
+        <p>Round ${round}</p>
+        <p>You chose: <strong>${userChoice}</strong></p>
+        <p>Computer chose: <strong>${computerChoice}</strong></p>
+        <p>${outcome}</p>
+        <p>Your score this round: ${userRoundScore}</p>
+        <p>Computer score this round: ${computerRoundScore}</p>
+      `;
+
+      document.getElementById('score').innerHTML = `
+        <p>Your Total Score: ${userScore}</p>
+        <p>Computer Total Score: ${computerScore}</p>
+      `;
+    }
+
+    let lastUserChoice = 'Cooperate';
+  </script>
+</body>
+</html>
