@@ -46,7 +46,7 @@
   <h1>Game Theory Simulation</h1>
   <div id="instructions">
     <p><strong>Instructions:</strong></p>
-    <p>Play 200 rounds against a computer opponent. Choose to <strong>Cooperate</strong> or <strong>Defect</strong> each round. Try to maximize your score.</p>
+    <p>Play number of rounds against a computer opponent. Choose to <strong>Cooperate</strong> or <strong>Defect</strong> each round. Try to maximize your score.</p>
     <p>Scoring:</p>
     <ul style="text-align:left; display:inline-block;">
       <li>Both Cooperate: 3 points each</li>
@@ -116,8 +116,8 @@
     });
 
     function playRound(userChoice) {
-      if (round >= 200) {
-        alert("Game over! You've completed 200 rounds.");
+      if (round >= 50) {
+        alert("Game over! You've completed 50 rounds.");
         return;
       }
 
