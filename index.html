@@ -2,127 +2,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Game Theory Simulation </title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-      margin: 0;
-    }
-    button {
-      padding: 12px 24px;
-      margin: 10px;
-      font-size: 18px;
-      touch-action: manipulation;
-    }
-    #instructions {
-      margin-bottom: 20px;
-      font-size: 16px;
-      max-width: 100%;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-    #score {
-      margin-top: 20px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Game Selector</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .tab { cursor: pointer; padding: 10px 20px; display: inline-block; background: #eee; margin-right: 5px; border-radius: 5px 5px 0 0; }
+        .tab:hover { background: #ddd; }
+        .tab-content { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
+        .active { display: block; }
+        .active-tab { background: #ccc; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+        #results { margin-top: 20px; }
+    </style>
 </head>
 <body>
-  <h1>Game Theory Simulation </h1>
-  <div id="instructions">
-    <p><strong>Instructions:</strong></p>
-    <p>Play number of rounds against a computer opponent. Choose to <strong>Cooperate</strong> or <strong>Defect</strong> each round. Try to maximize your score.</p>
-    <p>Scoring:</p>
-    <ul style="text-align:left; display:inline-block;">
-      <li>Both Cooperate: 3 points each</li>
-      <li>You Cooperate, Computer Defects: You 0, Computer 5</li>
-      <li>You Defect, Computer Cooperates: You 5, Computer 0</li>
-      <li>Both Defect: 1 point each</li>
-    </ul>
-  </div>
+    <h1>Game Selector</h1>
+    <div>
+        <div class="tab" onclick="showTab('cardGame')" id="cardTab">Card Guessing Game</div>
+        <div class="tab" onclick="showTab('gameTheory')" id="theoryTab">Game Theory Simulation</div>
+    </div>
 
-  <p>Choose your move:</p>
-  <button onclick="playRound('Cooperate')">Cooperate</button>
-  <button onclick="playRound('Defect')">Defect</button>
+    <div id="cardGame" class="tab-content active">
+        <h2>Card Guessing Game</h2>
+        <p>Instructions: You are given a deck of 10 cards, which includes 4 Aces and 6 other cards. Your task is to guess the position (1 to 10) of the last Ace after the deck is shuffled. The game will simulate 100 rounds and show how many times your guess was correct.</p>
+        <label for="guess">Enter your guess (1-10): </label>
+        <input type="number" id="guess" min="1" max="10">
+        <button onclick="runSimulation()">Play</button>
+        <button onclick="restartGame()">Restart</button>
+        <div id="results"></div>
+    </div>
 
-  <div id="result"></div>
-  <div id="score"></div>
+    <div id="gameTheory" class="tab-content">
+        <h2>Game Theory Simulation</h2>
+        <iframe src="https://arjunjanamatti217-ship-it.github.io/game-theory-simulation/" width="100%" height="600px"></iframe>
+    </div>
 
-  <script>
-    let round = 0;
-    const maxRounds = 50;
-    let userScore = 0;
-    let computerScore = 0;
-    let punishmentRounds = 0;
-    let lastUserChoice = 'Cooperate';
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById('cardTab').classList.remove('active-tab');
+            document.getElementById('theoryTab').classList.remove('active-tab');
+            document.getElementById(tabId === 'cardGame' ? 'cardTab' : 'theoryTab').classList.add('active-tab');
+        }
 
-    function playRound(userChoice) {
-      if (round >= maxRounds) {
-        alert("Game over! You've completed 50 rounds.");
-        return;
-      }
+        function runSimulation() {
+            const guess = parseInt(document.getElementById('guess').value);
+            if (!guess || guess < 1 || guess > 10) {
+                alert("Please enter a valid guess between 1 and 10.");
+                return;
+            }
 
-      let computerChoice;
-      if (round === 0) {
-        computerChoice = 'Cooperate';
-      } else if (punishmentRounds > 0) {
-        computerChoice = 'Defect';
-        punishmentRounds--;
-      } else {
-        computerChoice = lastUserChoice;
-      }
+            let correct = 0;
+            let tableHTML = '<table><tr><th>Round</th><th>Deck</th><th>Last Ace Position</th><th>Result</th></tr>';
 
-      let outcome = '';
-      let userRoundScore = 0;
-      let computerRoundScore = 0;
+            for (let i = 1; i <= 100; i++) {
+                let deck = Array(4).fill('A').concat(Array(6).fill('O'));
+                deck.sort(() => Math.random() - 0.5);
+                let lastAcePos = deck.lastIndexOf('A') + 1;
+                let result = lastAcePos === guess ? 'Correct' : 'Wrong';
+                if (result === 'Correct') correct++;
+                tableHTML += `<tr><td>${i}</td><td>${deck.join(', ')}</td><td>${lastAcePos}</td><td>${result}</td></tr>`;
+            }
 
-      if (userChoice === 'Cooperate' && computerChoice === 'Cooperate') {
-        outcome = 'Both cooperated. Mutual benefit!';
-        userRoundScore = 3;
-        computerRoundScore = 3;
-      } else if (userChoice === 'Cooperate' && computerChoice === 'Defect') {
-        outcome = 'You cooperated, computer defected. You lose!';
-        userRoundScore = 0;
-        computerRoundScore = 5;
-      } else if (userChoice === 'Defect' && computerChoice === 'Cooperate') {
-        outcome = 'You defected, computer cooperated. You win!';
-        userRoundScore = 5;
-        computerRoundScore = 0;
-        punishmentRounds = 3;
-      } else {
-        outcome = 'Both defected. Mutual loss!';
-        userRoundScore = 1;
-        computerRoundScore = 1;
-      }
+            tableHTML += '</table>';
+            document.getElementById('results').innerHTML = `<h3>You guessed position ${guess}</h3><p>Correct guesses: ${correct}<br>Wrong guesses: ${100 - correct}</p>` + tableHTML;
+        }
 
-      userScore += userRoundScore;
-      computerScore += computerRoundScore;
-      round++;
-      lastUserChoice = userChoice;
-
-      document.getElementById('result').innerHTML = `
-        <p>Round ${round}</p>
-        <p>You chose: <strong>${userChoice}</strong></p>
-        <p>Computer chose: <strong>${computerChoice}</strong></p>
-        <p>${outcome}</p>
-        <p>Your score this round: ${userRoundScore}</p>
-        <p>Computer score this round: ${computerRoundScore}</p>
-      `;
-
-      document.getElementById('score').innerHTML = `
-        <p>Your Total Score: ${userScore}</p>
-        <p>Computer Total Score: ${computerScore}</p>
-      `;
-    }
-  </script>
+        function restartGame() {
+            document.getElementById('guess').value = '';
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
 </body>
 </html>
