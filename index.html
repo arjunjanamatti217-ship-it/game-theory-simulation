@@ -1,78 +1,478 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Game Selector</title>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .tab { cursor: pointer; padding: 10px 20px; display: inline-block; background: #eee; margin-right: 5px; border-radius: 5px 5px 0 0; }
-        .tab:hover { background: #ddd; }
-        .tab-content { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
-        .active { display: block; }
-        .active-tab { background: #ccc; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
-        #results { margin-top: 20px; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Countdown – Numbers Round (Strict Rules)</title>
+  <style>
+    :root{
+      --bg:#0b0b0b; --card:#141414; --ink:#ffffff; --muted:#b7b7b7;
+      --accent:#ffcc00; --accent2:#ff8a00; --danger:#ff4d6d; --ok:#4dff88;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+    header{ padding:18px 14px; border-bottom:1px solid rgba(255,255,255,.12); }
+    h1{ margin:0; font-size:22px; letter-spacing:.3px; }
+    .wrap{ max-width:980px; margin:0 auto; padding:14px; display:grid; gap:14px; }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:14px;
+      padding:14px;
+    }
+    .row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+    .spacer{ flex:1; }
+    label{ color:var(--muted); font-size:13px; }
+    select, button, input, textarea{
+      font-family:inherit; font-size:14px; border-radius:10px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color: var(--ink);
+      padding:10px 12px;
+      outline:none;
+    }
+    button{
+      cursor:pointer;
+      background: linear-gradient(180deg, rgba(255,204,0,.20), rgba(255,204,0,.08));
+      border-color: rgba(255,204,0,.35);
+    }
+    button:hover{ filter:brightness(1.07); }
+    button.secondary{
+      background: rgba(255,255,255,.07);
+      border-color: rgba(255,255,255,.16);
+    }
+    button.danger{
+      background: rgba(255,77,109,.18);
+      border-color: rgba(255,77,109,.35);
+    }
+    .timer{
+      font-family:var(--mono);
+      font-size:40px;
+      font-weight:900;
+      color:var(--accent);
+      letter-spacing:1px;
+      min-width: 120px;
+      text-align:center;
+    }
+    .timer.done{ color: var(--danger); }
+    .tiles{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+    .tile{
+      width:70px; height:62px; display:grid; place-items:center;
+      font-family:var(--mono); font-size:26px; font-weight:900;
+      border-radius:12px;
+      background: linear-gradient(180deg, rgba(255,138,0,.30), rgba(255,255,255,.06));
+      border:1px solid rgba(255,255,255,.16);
+      box-shadow: 0 6px 0 rgba(0,0,0,.35);
+      color:#000;
+    }
+    .tile.small{
+      background: linear-gradient(180deg, rgba(255,204,0,.28), rgba(255,255,255,.06));
+    }
+    .target{
+      font-family:var(--mono);
+      font-size:54px;
+      font-weight:900;
+      color:var(--accent);
+      letter-spacing:2px;
+    }
+    textarea{ width:100%; min-height:110px; resize:vertical; }
+    .msg{ margin-top:10px; font-size:13px; color:var(--muted); line-height:1.4; }
+    .ok{ color: var(--ok); }
+    .bad{ color: var(--danger); }
+    .score{
+      font-family:var(--mono);
+      font-size:22px;
+      font-weight:900;
+      color:var(--accent2);
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color: var(--muted);
+      font-size:13px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Game Selector</h1>
-    <div>
-        <div class="tab" onclick="showTab('cardGame')" id="cardTab">Card Guessing Game</div>
-        <div class="tab" onclick="showTab('gameTheory')" id="theoryTab">Game Theory Simulation</div>
-    </div>
+  <header>
+    <h1>Countdown – Numbers Round (Strict Rules)</h1>
+  </header>
 
-    <div id="cardGame" class="tab-content active">
-        <h2>Card Guessing Game</h2>
-        <p>Instructions: You are given a deck of 10 cards, which includes 4 Aces and 6 other cards. Your task is to guess the position (1 to 10) of the last Ace after the deck is shuffled. The game will simulate 100 rounds and show how many times your guess was correct.</p>
-        <label for="guess">Enter your guess (1-10): </label>
-        <input type="number" id="guess" min="1" max="10">
-        <button onclick="runSimulation()">Play</button>
-        <button onclick="restartGame()">Restart</button>
-        <div id="results"></div>
-    </div>
+  <div class="wrap">
+    <section class="card">
+      <div class="row">
+        <div>
+          <label for="bigCount">How many BIG numbers (0–4)?</label><br/>
+          <select id="bigCount">
+            <option value="0">0 big + 6 small</option>
+            <option value="1" selected>1 big + 5 small</option>
+            <option value="2">2 big + 4 small</option>
+            <option value="3">3 big + 3 small</option>
+            <option value="4">4 big + 2 small</option>
+          </select>
+        </div>
+        <span class="spacer"></span>
+        <div class="pill">
+          <span>Timer:</span>
+          <span id="clock" class="timer">30</span>
+        </div>
+        <button id="start" title="Generate numbers + target and start 30s">New round + Start 30s</button>
+        <button id="stop" class="danger secondary" title="Stop the timer">Stop</button>
+        <button id="reset" class="secondary" title="Clear everything">Reset</button>
+      </div>
 
-    <div id="gameTheory" class="tab-content">
-        <h2>Game Theory Simulation</h2>
-        <iframe src="https://arjunjanamatti217-ship-it.github.io/game-theory-simulation/" width="100%" height="600px"></iframe>
-    </div>
+      <div class="msg">
+        Strict rules enabled: you must use each tile at most once; each step must be <strong>A op B</strong> on its own line (or separated by <strong>;</strong>), and every intermediate result must be a <strong>positive integer</strong> (division must be exact).
+      </div>
 
-    <script>
-        function showTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            document.getElementById('cardTab').classList.remove('active-tab');
-            document.getElementById('theoryTab').classList.remove('active-tab');
-            document.getElementById(tabId === 'cardGame' ? 'cardTab' : 'theoryTab').classList.add('active-tab');
+      <div class="row" style="margin-top:10px">
+        <div>
+          <div class="msg" style="margin:0">Numbers</div>
+          <div id="tiles" class="tiles"></div>
+        </div>
+        <span class="spacer"></span>
+        <div style="text-align:right">
+          <div class="msg" style="margin:0">Target</div>
+          <div id="target" class="target">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <div style="font-weight:800">Your working</div>
+        <span class="spacer"></span>
+        <div class="pill">Score: <span id="score" class="score">0</span></div>
+        <button id="scoreBtn" class="secondary">Score my answer</button>
+      </div>
+
+      <textarea id="working" placeholder="Example:\n100-25=75\n9+1=10\n75*10=750"></textarea>
+      <div id="feedback" class="msg"></div>
+
+      <!-- Availability panel -->
+      <div class="msg" style="margin-top:10px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="color:#b7b7b7">Available now:</span>
+          <span id="availNow" style="font-family:var(--mono);color:#ffcc00;font-weight:900"></span>
+        </div>
+        <div id="availTrace"
+             style="margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.18);
+                    font-family:var(--mono);font-size:12px;line-height:1.45;max-height:160px;overflow:auto;white-space:pre-wrap"></div>
+      </div>
+
+      <div class="msg">
+        Scoring: <strong>10</strong> exact, <strong>7</strong> within 5, <strong>5</strong> within 10, else 0.
+      </div>
+    </section>
+  </div>
+
+  <script>
+  (() => {
+    const BIGS = [25, 50, 75, 100];
+    const SMALLS = [1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10];
+
+    const bigCountEl = document.getElementById("bigCount");
+    const tilesEl = document.getElementById("tiles");
+    const targetEl = document.getElementById("target");
+    const clockEl = document.getElementById("clock");
+    const startBtn = document.getElementById("start");
+    const stopBtn = document.getElementById("stop");
+    const resetBtn = document.getElementById("reset");
+    const workingEl = document.getElementById("working");
+    const scoreBtn = document.getElementById("scoreBtn");
+    const scoreEl = document.getElementById("score");
+    const feedbackEl = document.getElementById("feedback");
+    const availNowEl = document.getElementById("availNow");
+    const availTraceEl = document.getElementById("availTrace");
+
+    let roundNumbers = [];
+    let target = null;
+
+    // Timer
+    let t = 30;
+    let timer = null;
+    function setClock(val, done=false){
+      clockEl.textContent = String(val);
+      clockEl.classList.toggle("done", done);
+    }
+    function stopTimer(){
+      if(timer) clearInterval(timer);
+      timer = null;
+    }
+    function startTimer(){
+      stopTimer();
+      t = 30;
+      setClock(t, false);
+      timer = setInterval(() => {
+        t--;
+        setClock(t, t === 0);
+        if(t === 0) stopTimer();
+      }, 1000);
+    }
+
+    // Helpers
+    const randInt = (n) => Math.floor(Math.random() * n);
+
+    function drawWithoutReplacement(pool, k){
+      const p = pool.slice();
+      for(let i=p.length-1; i>0; i--){
+        const j = randInt(i+1);
+        [p[i], p[j]] = [p[j], p[i]];
+      }
+      return p.slice(0, k);
+    }
+
+    function newRound(){
+      const bigCount = Number(bigCountEl.value);
+      const smallCount = 6 - bigCount;
+      const bigPick = drawWithoutReplacement(BIGS, bigCount);
+      const smallPick = drawWithoutReplacement(SMALLS, smallCount);
+      roundNumbers = bigPick.concat(smallPick);
+      target = 101 + randInt(899);
+
+      render();
+      feedbackEl.textContent = "Clock started — go! (Use one operation per line, e.g. 100-25=75)";
+      scoreEl.textContent = "0";
+      workingEl.value = "";
+      startTimer();
+      updateAvailabilityPanel();
+    }
+
+    function render(){
+      tilesEl.innerHTML = "";
+      roundNumbers.forEach(n => {
+        const d = document.createElement("div");
+        d.className = "tile " + (BIGS.includes(n) ? "" : "small");
+        d.textContent = n;
+        tilesEl.appendChild(d);
+      });
+      targetEl.textContent = target ?? "—";
+    }
+
+    function resetAll(){
+      stopTimer();
+      setClock(30, false);
+      roundNumbers = [];
+      target = null;
+      tilesEl.innerHTML = "";
+      targetEl.textContent = "—";
+      workingEl.value = "";
+      scoreEl.textContent = "0";
+      feedbackEl.textContent = "";
+      if(availNowEl) availNowEl.textContent = "";
+      if(availTraceEl) availTraceEl.textContent = "";
+    }
+
+    function sanitizeWorking(s){
+      const cleaned = (s || "").replace(/×/g, "*").replace(/÷/g, "/");
+      if(!/^[0-9+\-*/=\s;\n\r\t]*$/.test(cleaned)) return null;
+      return cleaned;
+    }
+
+    function multisetFrom(arr){
+      const m = new Map();
+      for(const n of arr) m.set(n, (m.get(n) || 0) + 1);
+      return m;
+    }
+    function addToSet(m, n){ m.set(n, (m.get(n) || 0) + 1); }
+    function canTake(m, n, count=1){ return (m.get(n) || 0) >= count; }
+    function takeOne(m, n){
+      const c = m.get(n) || 0;
+      if(c <= 0) return false;
+      if(c === 1) m.delete(n);
+      else m.set(n, c - 1);
+      return true;
+    }
+    function takeTwo(m, a, b){
+      if(a === b){
+        if(!canTake(m, a, 2)) return false;
+        takeOne(m, a); takeOne(m, b);
+        return true;
+      }else{
+        if(!canTake(m, a, 1) || !canTake(m, b, 1)) return false;
+        takeOne(m, a); takeOne(m, b);
+        return true;
+      }
+    }
+
+    function formatMultiset(m){
+      const arr = [];
+      for(const [n, c] of m.entries()){
+        for(let i=0;i<c;i++) arr.push(n);
+      }
+      arr.sort((a,b)=>a-b);
+      return arr.join(", ");
+    }
+
+    function parseStep(step){
+      const raw = step.trim();
+      if(!raw) return null;
+
+      let declared = null;
+      let lhs = raw;
+
+      if(raw.includes("=")){
+        const parts = raw.split("=");
+        lhs = parts[0].trim();
+        const rhs = parts.slice(1).join("=").trim();
+        if(rhs !== ""){
+          if(!/^\d+$/.test(rhs)) return { ok:false, reason:`Right-hand side must be an integer in: '${raw}'` };
+          declared = parseInt(rhs, 10);
+        }
+      }
+
+      if(/^\d+$/.test(lhs)){
+        return { ok:true, kind:"number", n: parseInt(lhs, 10), declared, raw };
+      }
+
+      const m = lhs.match(/^(\d+)\s*([+\-*/])\s*(\d+)$/);
+      if(!m) return { ok:false, reason:`Each line must be 'A op B' (optionally '= result') or a single number. Problem: '${raw}'` };
+
+      return { ok:true, kind:"op", a: parseInt(m[1],10), op: m[2], b: parseInt(m[3],10), declared, raw };
+    }
+
+    function applyOpStrict(a, op, b){
+      let r;
+      if(op === "+") r = a + b;
+      else if(op === "-"){
+        r = a - b;
+        if(r <= 0) return { ok:false, reason:`Subtraction must give a positive result: ${a} - ${b} = ${r}` };
+      }
+      else if(op === "*") r = a * b;
+      else if(op === "/"){
+        if(b === 0) return { ok:false, reason:`Division by zero is not allowed: ${a} / ${b}` };
+        if(a % b !== 0) return { ok:false, reason:`Division must be exact (integer): ${a} / ${b} is not an integer` };
+        r = a / b;
+        if(r <= 0) return { ok:false, reason:`Division must give a positive result: ${a} / ${b} = ${r}` };
+      } else return { ok:false, reason:`Unknown operator '${op}'` };
+
+      if(!Number.isInteger(r)) return { ok:false, reason:`Result must be an integer: got ${r}` };
+      return { ok:true, result:r };
+    }
+
+    function evalWorkingStrict(text, withTrace=false){
+      if(!roundNumbers.length || target === null) return { ok:false, reason:"Start a round first." };
+
+      const s = sanitizeWorking(text);
+      if(s === null) return { ok:false, reason:"Only integers and operators + - * / with step separators (newline or ';') are allowed. Parentheses/decimals are not allowed in strict mode." };
+
+      const steps = s.split(/\n|;/).map(x => x.trim()).filter(Boolean);
+      const available = multisetFrom(roundNumbers);
+
+      const trace = [];
+      if(withTrace) trace.push({ label: "Start", available: formatMultiset(available) });
+
+      if(!steps.length){
+        return withTrace
+          ? { ok:true, value:null, trace, availableNow: formatMultiset(available) }
+          : { ok:false, reason:"Enter your working as one operation per line (e.g. 100-25=75)." };
+      }
+
+      let last = null;
+      for(const st of steps){
+        const parsed = parseStep(st);
+        if(!parsed) continue;
+        if(!parsed.ok) return { ok:false, reason: parsed.reason, trace, availableNow: formatMultiset(available) };
+
+        if(parsed.kind === "number"){
+          const n = parsed.n;
+          if(!canTake(available, n, 1)) return { ok:false, reason:`Number ${n} is not available at this step (already used or never created). Step: '${parsed.raw}'`, trace, availableNow: formatMultiset(available) };
+          takeOne(available, n);
+          if(parsed.declared !== null && parsed.declared !== n) return { ok:false, reason:`Declared value does not match the number in step: '${parsed.raw}'`, trace, availableNow: formatMultiset(available) };
+          last = { value:n, step: parsed.raw };
+          if(withTrace) trace.push({ label: parsed.raw, change: `Use ${n}`, available: formatMultiset(available) });
+          continue;
         }
 
-        function runSimulation() {
-            const guess = parseInt(document.getElementById('guess').value);
-            if (!guess || guess < 1 || guess > 10) {
-                alert("Please enter a valid guess between 1 and 10.");
-                return;
-            }
+        const { a, b, op, declared, raw } = parsed;
+        if(!takeTwo(available, a, b)) return { ok:false, reason:`You tried to use ${a} and ${b}, but one/both are not available at this step. Step: '${raw}'`, trace, availableNow: formatMultiset(available) };
 
-            let correct = 0;
-            let tableHTML = '<table><tr><th>Round</th><th>Deck</th><th>Last Ace Position</th><th>Result</th></tr>';
+        const applied = applyOpStrict(a, op, b);
+        if(!applied.ok) return { ok:false, reason: applied.reason, trace, availableNow: formatMultiset(available) };
 
-            for (let i = 1; i <= 100; i++) {
-                let deck = Array(4).fill('A').concat(Array(6).fill('O'));
-                deck.sort(() => Math.random() - 0.5);
-                let lastAcePos = deck.lastIndexOf('A') + 1;
-                let result = lastAcePos === guess ? 'Correct' : 'Wrong';
-                if (result === 'Correct') correct++;
-                tableHTML += `<tr><td>${i}</td><td>${deck.join(', ')}</td><td>${lastAcePos}</td><td>${result}</td></tr>`;
-            }
+        const r = applied.result;
+        if(declared !== null && declared !== r) return { ok:false, reason:`Declared result is incorrect: ${a} ${op} ${b} = ${r} (but you wrote ${declared}). Step: '${raw}'`, trace, availableNow: formatMultiset(available) };
 
-            tableHTML += '</table>';
-            document.getElementById('results').innerHTML = `<h3>You guessed position ${guess}</h3><p>Correct guesses: ${correct}<br>Wrong guesses: ${100 - correct}</p>` + tableHTML;
+        addToSet(available, r);
+        last = { value:r, step: raw };
+        if(withTrace) trace.push({ label: raw, change: `Use ${a}, ${b} → make ${r}`, available: formatMultiset(available) });
+      }
+
+      if(!last) return { ok:false, reason:"No valid steps found.", trace, availableNow: formatMultiset(available) };
+      return { ok:true, value:last.value, lastStep:last.step, trace, availableNow: formatMultiset(available) };
+    }
+
+    function updateAvailabilityPanel(){
+      if(!availNowEl || !availTraceEl) return;
+      if(!roundNumbers.length || target === null){
+        availNowEl.textContent = "";
+        availTraceEl.textContent = "";
+        return;
+      }
+
+      const res = evalWorkingStrict(workingEl.value, true);
+      availNowEl.textContent = res.availableNow || formatMultiset(multisetFrom(roundNumbers));
+
+      const lines = [];
+      if(res.trace && res.trace.length){
+        for(const row of res.trace){
+          if(row.label === "Start"){
+            lines.push(`Start: [${row.available}]`);
+          }else{
+            lines.push(`${row.label}`);
+            if(row.change) lines.push(`  ${row.change}`);
+            lines.push(`  Remaining: [${row.available}]`);
+          }
         }
+      }else{
+        lines.push(`Start: [${formatMultiset(multisetFrom(roundNumbers))}]`);
+      }
+      if(!res.ok){
+        lines.push("\n✗ " + res.reason);
+      }
+      availTraceEl.textContent = lines.join("\n");
+    }
 
-        function restartGame() {
-            document.getElementById('guess').value = '';
-            document.getElementById('results').innerHTML = '';
-        }
-    </script>
+    function scoreRound(){
+      if(!roundNumbers.length || target === null){
+        feedbackEl.innerHTML = `<span class="bad">✗ Start a round first.</span>`;
+        return;
+      }
+
+      const res = evalWorkingStrict(workingEl.value, false);
+      updateAvailabilityPanel();
+
+      if(!res.ok){
+        feedbackEl.innerHTML = `<span class="bad">✗ ${res.reason}</span>`;
+        scoreEl.textContent = "0";
+        return;
+      }
+
+      const diff = Math.abs(res.value - target);
+      let pts = 0;
+      if(diff === 0) pts = 10;
+      else if(diff <= 5) pts = 7;
+      else if(diff <= 10) pts = 5;
+
+      scoreEl.textContent = String(pts);
+      const preface = `Final value <strong>${res.value}</strong> (from: <code>${res.lastStep}</code>).`;
+      feedbackEl.innerHTML =
+        `<span class="${pts ? "ok":"bad"}">${pts ? "✓":"✗"}</span> ${preface}
+         Target <strong>${target}</strong> → diff <strong>${diff}</strong> → <strong>${pts}</strong> points.`;
+    }
+
+    startBtn.addEventListener("click", newRound);
+    stopBtn.addEventListener("click", () => { stopTimer(); feedbackEl.textContent = "Timer stopped."; });
+    resetBtn.addEventListener("click", resetAll);
+    scoreBtn.addEventListener("click", scoreRound);
+    workingEl.addEventListener("input", updateAvailabilityPanel);
+
+    resetAll();
+  })();
+  </script>
 </body>
 </html>
