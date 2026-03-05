@@ -115,12 +115,22 @@
             <option value="4">4 big + 2 small</option>
           </select>
         </div>
+
         <span class="spacer"></span>
+
+        <!-- ✅ Duration input in UI -->
+        <div class="pill">
+          <label for="duration" style="margin-right:6px;">Duration (s):</label>
+          <input id="duration" type="number" min="10" max="999" step="5" value="90"
+                 style="width:90px; padding:8px 10px;" />
+        </div>
+
         <div class="pill">
           <span>Timer:</span>
           <span id="clock" class="timer">90</span>
         </div>
-        <button id="start" title="Generate numbers + target and start 90s">New round + Start 90s</button>
+
+        <button id="start" title="Generate numbers + target and start timer">New round + Start</button>
         <button id="stop" class="danger secondary" title="Stop the timer">Stop</button>
         <button id="reset" class="secondary" title="Clear everything">Reset</button>
       </div>
@@ -150,7 +160,10 @@
         <button id="scoreBtn" class="secondary">Score my answer</button>
       </div>
 
-      <textarea id="working" placeholder="Example:\n100-25=75\n9+1=10\n75*10=750"></textarea>
+      <textarea id="working" placeholder="Example:
+100-25=75
+9+1=10
+75*10=750"></textarea>
       <div id="feedback" class="msg"></div>
 
       <!-- Availability panel -->
@@ -179,6 +192,7 @@
     const tilesEl = document.getElementById("tiles");
     const targetEl = document.getElementById("target");
     const clockEl = document.getElementById("clock");
+    const durationEl = document.getElementById("duration"); // ✅ UI duration
     const startBtn = document.getElementById("start");
     const stopBtn = document.getElementById("stop");
     const resetBtn = document.getElementById("reset");
@@ -192,20 +206,33 @@
     let roundNumbers = [];
     let target = null;
 
-    // Timer
-    let t = 90;
+    // ✅ Timer (UI-driven)
+    let t = 0;
     let timer = null;
+
+    function getDurationSeconds(){
+      const v = parseInt(durationEl?.value, 10);
+      if (Number.isNaN(v)) return 90;
+      return Math.max(10, Math.min(999, v)); // clamp 10..999
+    }
+
     function setClock(val, done=false){
       clockEl.textContent = String(val);
       clockEl.classList.toggle("done", done);
     }
+
     function stopTimer(){
       if(timer) clearInterval(timer);
       timer = null;
     }
+
     function startTimer(){
       stopTimer();
-      t = 90;
+      t = getDurationSeconds();
+
+      // normalize UI value (in case user typed outside bounds)
+      if(durationEl) durationEl.value = String(t);
+
       setClock(t, false);
       timer = setInterval(() => {
         t--;
@@ -255,7 +282,9 @@
 
     function resetAll(){
       stopTimer();
-      setClock(90, false);
+      // show current UI duration when reset (not hardcoded)
+      setClock(getDurationSeconds(), false);
+
       roundNumbers = [];
       target = null;
       tilesEl.innerHTML = "";
@@ -470,6 +499,11 @@
     resetBtn.addEventListener("click", resetAll);
     scoreBtn.addEventListener("click", scoreRound);
     workingEl.addEventListener("input", updateAvailabilityPanel);
+
+    // ✅ If timer isn't running, reflect duration changes immediately on the clock
+    durationEl?.addEventListener("input", () => {
+      if(!timer) setClock(getDurationSeconds(), false);
+    });
 
     resetAll();
   })();
