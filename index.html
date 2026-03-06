@@ -46,6 +46,7 @@
       background: rgba(255,77,109,.18);
       border-color: rgba(255,77,109,.35);
     }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
     .timer{
       font-family:var(--mono);
       font-size:40px;
@@ -95,6 +96,7 @@
       color: var(--muted);
       font-size:13px;
     }
+    .mono { font-family: var(--mono); }
   </style>
 </head>
 <body>
@@ -118,7 +120,7 @@
 
         <span class="spacer"></span>
 
-        <!-- ✅ Duration input in UI -->
+        <!-- Duration input -->
         <div class="pill">
           <label for="duration" style="margin-right:6px;">Duration (s):</label>
           <input id="duration" type="number" min="10" max="999" step="5" value="90"
@@ -136,7 +138,9 @@
       </div>
 
       <div class="msg">
-        Strict rules enabled: you must use each tile at most once; each step must be <strong>A op B</strong> on its own line (or separated by <strong>;</strong>), and every intermediate result must be a <strong>positive integer</strong> (division must be exact).
+        Strict rules enabled: you must use each tile at most once; each step must be <strong>A op B</strong>
+        on its own line (or separated by <strong>;</strong>), and every intermediate result must be a
+        <strong>positive integer</strong> (division must be exact).
       </div>
 
       <div class="row" style="margin-top:10px">
@@ -164,6 +168,7 @@
 100-25=75
 9+1=10
 75*10=750"></textarea>
+
       <div id="feedback" class="msg"></div>
 
       <!-- Availability panel -->
@@ -173,8 +178,23 @@
           <span id="availNow" style="font-family:var(--mono);color:#ffcc00;font-weight:900"></span>
         </div>
         <div id="availTrace"
-             style="margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.18);
-                    font-family:var(--mono);font-size:12px;line-height:1.45;max-height:160px;overflow:auto;white-space:pre-wrap"></div>
+             style="margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+                    background:rgba(0,0,0,.18);font-family:var(--mono);font-size:12px;line-height:1.45;
+                    max-height:160px;overflow:auto;white-space:pre-wrap"></div>
+      </div>
+
+      <!-- Solver integration panel (NEW) -->
+      <div class="msg" style="margin-top:12px">
+        <div class="row" style="align-items:center;gap:10px">
+          <span style="color:#b7b7b7">Solver status:</span>
+          <span id="solverStatus" style="font-family:var(--mono);color:#ffcc00;font-weight:900">—</span>
+          <span class="spacer"></span>
+          <button id="revealBtn" class="secondary" style="display:none">Reveal solution</button>
+        </div>
+
+        <div id="solutionBox"
+             style="display:none;margin-top:10px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
+                    background:rgba(0,0,0,.18);font-family:var(--mono);font-size:12px;white-space:pre-wrap"></div>
       </div>
 
       <div class="msg">
@@ -188,11 +208,14 @@
     const BIGS = [25, 50, 75, 100];
     const SMALLS = [1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10];
 
+    // ✅ Your deployed Python API (Render)
+    const SOLVER_API = "https://countdown-solver-api.onrender.com";
+
     const bigCountEl = document.getElementById("bigCount");
     const tilesEl = document.getElementById("tiles");
     const targetEl = document.getElementById("target");
     const clockEl = document.getElementById("clock");
-    const durationEl = document.getElementById("duration"); // ✅ UI duration
+    const durationEl = document.getElementById("duration");
     const startBtn = document.getElementById("start");
     const stopBtn = document.getElementById("stop");
     const resetBtn = document.getElementById("reset");
@@ -203,17 +226,26 @@
     const availNowEl = document.getElementById("availNow");
     const availTraceEl = document.getElementById("availTrace");
 
+    // Solver UI
+    const solverStatusEl = document.getElementById("solverStatus");
+    const revealBtn = document.getElementById("revealBtn");
+    const solutionBox = document.getElementById("solutionBox");
+
     let roundNumbers = [];
     let target = null;
 
-    // ✅ Timer (UI-driven)
+    // ✅ Solver state
+    let solverToken = null;
+    let solvableFlag = false;
+
+    // Timer
     let t = 0;
     let timer = null;
 
     function getDurationSeconds(){
       const v = parseInt(durationEl?.value, 10);
       if (Number.isNaN(v)) return 90;
-      return Math.max(10, Math.min(999, v)); // clamp 10..999
+      return Math.max(10, Math.min(999, v));
     }
 
     function setClock(val, done=false){
@@ -229,10 +261,7 @@
     function startTimer(){
       stopTimer();
       t = getDurationSeconds();
-
-      // normalize UI value (in case user typed outside bounds)
       if(durationEl) durationEl.value = String(t);
-
       setClock(t, false);
       timer = setInterval(() => {
         t--;
@@ -253,6 +282,108 @@
       return p.slice(0, k);
     }
 
+    function render(){
+      tilesEl.innerHTML = "";
+      roundNumbers.forEach(n => {
+        const d = document.createElement("div");
+        d.className = "tile " + (BIGS.includes(n) ? "" : "small");
+        d.textContent = n;
+        tilesEl.appendChild(d);
+      });
+      targetEl.textContent = target ?? "—";
+    }
+
+    function resetSolverUI(){
+      solverToken = null;
+      solvableFlag = false;
+      if(solverStatusEl) solverStatusEl.textContent = "—";
+      if(revealBtn) revealBtn.style.display = "none";
+      if(solutionBox){
+        solutionBox.style.display = "none";
+        solutionBox.textContent = "";
+      }
+    }
+
+    async function checkSolvable(){
+      resetSolverUI();
+      if(!roundNumbers.length || target === null) return;
+
+      solverStatusEl.textContent = "Checking…";
+
+      try{
+        const res = await fetch(`${SOLVER_API}/check`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            numbers: roundNumbers,
+            target: target,
+            time_limit: 1.2
+          })
+        });
+
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        solverToken = data.token;
+        solvableFlag = !!data.solvable;
+
+        solverStatusEl.textContent = solvableFlag
+          ? `Solvable ✅ (${data.computed_ms}ms)`
+          : `No solution (limit) ❌ (${data.computed_ms}ms)`;
+
+        revealBtn.style.display = solvableFlag ? "inline-flex" : "none";
+
+      }catch(err){
+        solverStatusEl.textContent = "Solver offline / CORS error";
+        revealBtn.style.display = "none";
+        console.error(err);
+      }
+    }
+
+    async function revealSolution(){
+      if(!solvableFlag || !solverToken) return;
+
+      // “only if user insists”
+      const ok = confirm("Reveal the exact solution steps?");
+      if(!ok) return;
+
+      revealBtn.disabled = true;
+      solverStatusEl.textContent = "Solving…";
+      solutionBox.style.display = "none";
+      solutionBox.textContent = "";
+
+      try{
+        const res = await fetch(`${SOLVER_API}/solve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            numbers: roundNumbers,
+            target: target,
+            token: solverToken,
+            time_limit: 3.0
+          })
+        });
+
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if(!data.solvable || !data.steps){
+          solverStatusEl.textContent = `No solution returned (${data.computed_ms}ms)`;
+          return;
+        }
+
+        solverStatusEl.textContent = `Solution ready ✅ (${data.computed_ms}ms)`;
+        solutionBox.style.display = "block";
+        solutionBox.textContent = data.steps.join("\n");
+
+      }catch(err){
+        solverStatusEl.textContent = "Solver error";
+        console.error(err);
+      }finally{
+        revealBtn.disabled = false;
+      }
+    }
+
     function newRound(){
       const bigCount = Number(bigCountEl.value);
       const smallCount = 6 - bigCount;
@@ -266,23 +397,13 @@
       scoreEl.textContent = "0";
       workingEl.value = "";
       startTimer();
-      updateAvailabilityPanel();
-    }
 
-    function render(){
-      tilesEl.innerHTML = "";
-      roundNumbers.forEach(n => {
-        const d = document.createElement("div");
-        d.className = "tile " + (BIGS.includes(n) ? "" : "small");
-        d.textContent = n;
-        tilesEl.appendChild(d);
-      });
-      targetEl.textContent = target ?? "—";
+      updateAvailabilityPanel();
+      checkSolvable(); // ✅ NEW: check if solvable (don’t reveal)
     }
 
     function resetAll(){
       stopTimer();
-      // show current UI duration when reset (not hardcoded)
       setClock(getDurationSeconds(), false);
 
       roundNumbers = [];
@@ -294,6 +415,7 @@
       feedbackEl.textContent = "";
       if(availNowEl) availNowEl.textContent = "";
       if(availTraceEl) availTraceEl.textContent = "";
+      resetSolverUI();
     }
 
     function sanitizeWorking(s){
@@ -494,13 +616,14 @@
          Target <strong>${target}</strong> → diff <strong>${diff}</strong> → <strong>${pts}</strong> points.`;
     }
 
+    // Event listeners
     startBtn.addEventListener("click", newRound);
     stopBtn.addEventListener("click", () => { stopTimer(); feedbackEl.textContent = "Timer stopped."; });
     resetBtn.addEventListener("click", resetAll);
     scoreBtn.addEventListener("click", scoreRound);
     workingEl.addEventListener("input", updateAvailabilityPanel);
+    revealBtn.addEventListener("click", revealSolution);
 
-    // ✅ If timer isn't running, reflect duration changes immediately on the clock
     durationEl?.addEventListener("input", () => {
       if(!timer) setClock(getDurationSeconds(), false);
     });
